@@ -1,0 +1,46 @@
+version: "2.1"
+
+services:
+  watchtower:
+    image: containrrr/watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 60
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+  ssl:
+    image: nginxproxy/acme-companion:latest
+    restart: always
+    container_name: ssl
+    environment:
+      NGINX_PROXY_CONTAINER: proxy
+      DEFAULT_EMAIL: ${EMAIL}
+    volumes:
+      - ${DIR}/app-data/proxy/certs:/etc/nginx/certs
+      - ${DIR}/app-data/proxy/vhostd:/etc/nginx/vhost.d
+      - ${DIR}/app-data/proxy/html:/usr/share/nginx/html
+      - ${DIR}/app-data/proxy/acme:/etc/acme.sh
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+  db:
+    image: postgres:11
+    ports:
+      - 5432:5432
+    volumes:
+      - "postgres_data:/var/lib/postgresql/data"
+  terrastories:
+    image: communityfirst/terrastories
+    env_file:
+      - ./.env
+    depends_on:
+      - db
+    volumes:
+      - ${DIR}/bundler:/usr/local/bundle
+      - ${DIR}/terrastories/data:/api
+      - ${DIR}/terrastories/media:/media
+      - ${DIR}/terrastories/import:/api/import/media
