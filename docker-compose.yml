@@ -1,12 +1,19 @@
 version: "2.1"
-
+volumes:
+  postgres_data:
+  bundler:
+  terrastories-data:
+  terrastories-media:
+  terrastories-import:
+  certs:
+  vhost:
+  html:
 services:
   watchtower:
     image: containrrr/watchtower
     restart: always
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval 60
   proxy:
     image: nginxproxy/nginx-proxy
     restart: always
@@ -17,10 +24,9 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ${DIR}/app-data/proxy/certs:/etc/nginx/certs:ro
-      - ${DIR}/app-data/proxy/vhostd:/etc/nginx/vhost.d
-      - ${DIR}/app-data/proxy/html:/usr/share/nginx/html
-      - ${DIR}/app-data/proxy/nginx-conf:/etc/nginx/conf.d
+      - certs:/etc/nginx/certs
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
       - /var/run/docker.sock:/tmp/docker.sock:ro
   ssl:
     image: nginxproxy/acme-companion:latest
@@ -29,13 +35,10 @@ services:
     environment:
       NGINX_PROXY_CONTAINER: proxy
       DEFAULT_EMAIL: ${EMAIL}
+    volumes_from:
+      - proxy
     volumes:
-      - ${DIR}/app-data/proxy/certs:/etc/nginx/certs
-      - ${DIR}/app-data/proxy/vhostd:/etc/nginx/vhost.d
-      - ${DIR}/app-data/proxy/html:/usr/share/nginx/html
-      - ${DIR}/app-data/proxy/acme:/etc/acme.sh
       - /var/run/docker.sock:/var/run/docker.sock:ro
-
   db:
     image: postgres:11
     env_file:
@@ -43,15 +46,15 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - ${DIR}/app-data/postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
   terrastories:
     image: communityfirst/terrastories
     env_file:
-      - ./.env
+    - ./.env
     depends_on:
       - db
     volumes:
-      - ${DIR}/app-data/terrastories/bundler:/usr/local/bundle
-      - ${DIR}/app-data/terrastories/data:/api
-      - ${DIR}/app-data/terrastories/media:/media
-      - ${DIR}/app-data/terrastories/import:/api/import/media
+      - bundler:/usr/local/bundle
+      - terrastories-data:/api
+      - terrastories-media:/media
+      - terrastories-import:/api/import/media
