@@ -7,12 +7,20 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     command: --interval 60
-  nginx-proxy:
+  proxy:
     image: nginxproxy/nginx-proxy
+    restart: always
+    container_name: proxy
+    labels:
+      com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy: "true"
     ports:
       - "80:80"
       - "443:443"
     volumes:
+      - ${DIR}/app-data/proxy/certs:/etc/nginx/certs:ro
+      - ${DIR}/app-data/proxy/vhostd:/etc/nginx/vhost.d
+      - ${DIR}/app-data/proxy/html:/usr/share/nginx/html
+      - ${DIR}/app-data/proxy/nginx-conf:/etc/nginx/conf.d
       - /var/run/docker.sock:/tmp/docker.sock:ro
   ssl:
     image: nginxproxy/acme-companion:latest
@@ -27,12 +35,13 @@ services:
       - ${DIR}/app-data/proxy/html:/usr/share/nginx/html
       - ${DIR}/app-data/proxy/acme:/etc/acme.sh
       - /var/run/docker.sock:/var/run/docker.sock:ro
+
   db:
     image: postgres:11
     ports:
       - 5432:5432
     volumes:
-      - "postgres_data:/var/lib/postgresql/data"
+      - ${DIR}/app-data/postgres_data:/var/lib/postgresql/data
   terrastories:
     image: communityfirst/terrastories
     env_file:
@@ -40,7 +49,7 @@ services:
     depends_on:
       - db
     volumes:
-      - ${DIR}/bundler:/usr/local/bundle
-      - ${DIR}/terrastories/data:/api
-      - ${DIR}/terrastories/media:/media
-      - ${DIR}/terrastories/import:/api/import/media
+      - ${DIR}/app-data/terrastories/bundler:/usr/local/bundle
+      - ${DIR}/app-data/terrastories/data:/api
+      - ${DIR}/app-data/terrastories/media:/media
+      - ${DIR}/app-data/terrastories/import:/api/import/media
